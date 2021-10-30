@@ -4,6 +4,8 @@ from skimage import io, filters, color
 from sklearn.metrics import jaccard_score
 import threading
 from threading import Semaphore
+import time
+import multiprocessing
 
 sem = Semaphore(1)
 
@@ -31,11 +33,11 @@ def skin_lesion_segmentation(img_root):
 
 def thread(img_roots,gt_mask_roots):
     predicted_mask = skin_lesion_segmentation(img_roots)
-    gt_mask = io.imread(gt_masks_roots)/255 
-    sem.acquire()   
-    score.append(jaccard_score(np.ndarray.flatten(gt_mask),np.ndarray.flatten(predicted_mask)))
-    sem.release()
-    return
+    gt_mask = io.imread(gt_mask_roots)/255 
+    #sem.acquire()   
+    #score.append(jaccard_score(np.ndarray.flatten(gt_mask),np.ndarray.flatten(predicted_mask)))
+    #sem.release()
+    return jaccard_score(np.ndarray.flatten(gt_mask),np.ndarray.flatten(predicted_mask))
 
 def evaluate_masks(img_roots, gt_masks_roots):
     """ EVALUATE_MASKS: 
@@ -51,8 +53,16 @@ def evaluate_masks(img_roots, gt_masks_roots):
     """
     score = []
     NTHREADS = np.size(img_roots)
-    for i in np.arange(np.size(img_roots)):
-        print('I%d' %i)
+
+    pool_obj = multiprocessing.Pool()
+    score = pool_obj.starmap(thread, zip(img_roots,gt_masks_roots))
+    #t = threading.Thread(target=thread, args=[img_roots, gt_masks_roots])
+    #t.start()
+    #for i in np.arange(np.size(img_roots)):
+        #t = threading.Thread(target=thread, args=[img_roots[i], gt_masks_roots[i]])
+        #t.start()
+        #print('I%d' %i)
+        #score.append(t.join)
 
     mean_score = np.mean(score)
     print('Average Jaccard Index: '+str(mean_score))
@@ -82,5 +92,7 @@ print("Number of image masks", len(train_masks_files))
 #     Segmentation and evaluation
 #
 # -----------------------------------------------------------------------------
-
+start = time.time()
 mean_score = evaluate_masks(train_imgs_files, train_masks_files)
+done = time.time()
+print(done - start)
