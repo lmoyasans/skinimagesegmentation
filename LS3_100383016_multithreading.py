@@ -4,13 +4,19 @@ from skimage import io, filters, color, morphology
 from sklearn.metrics import jaccard_score
 import matplotlib.pyplot as plt
 import multiprocessing
+import cv2
+from sklearn.cluster import KMeans
+from skimage import img_as_ubyte
+from skimage.util import img_as_float
+
+## https://www.kaggle.com/naim99/image-classification-clustering-step-by-step
 
 
 def preprocess(image):
     # First pre-processing technqiue: difference_of_gaussians
-    image_preprocessed = filters.difference_of_gaussians(image, low_sigma = 140)
+    #image_preprocessed = filters.difference_of_gaussians(image, low_sigma = 140)
     # Second pre-processing technqiue: median filter
-    image_preprocessed = filters.median(image_preprocessed)
+    image_preprocessed = filters.median(image)
     '''plt.figure()
     plt.subplot(1,2,1), plt.imshow(image)
     plt.subplot(1,2,2), plt.imshow(image_preprocessed)
@@ -25,11 +31,48 @@ def segment(image):
     image_segmented = (image < otsu_th).astype('int')
     return image_segmented
 
+def segment_kmeans(image):
+    cv_image = img_as_ubyte(image)
+    #cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+
+    # reshape the image to a 2D array of pixels and 3 color values (RGB)
+    pixel_values = cv_image.reshape((-1, 3))
+    # convert to float
+    pixel_values = np.float32(pixel_values)
+
+    # define stopping criteria
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.2)
+
+    # number of clusters (K)
+    k = 2
+    _, labels, (centers) = cv2.kmeans(pixel_values, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+
+    # convert back to 8 bit values
+    centers = np.uint8(centers)
+
+    # flatten the labels array
+    labels = labels.flatten()
+
+    # convert all pixels to the color of the centroids
+    segmented_image = centers[labels.flatten()]
+
+    # reshape back to the original image dimension
+    segmented_image = segmented_image.reshape(cv_image.shape)
+
+    image_segmented_sk = img_as_float(segmented_image)
+
+    '''plt.figure()
+    plt.subplot(1,2,1), plt.imshow(image)
+    plt.subplot(1,2,2), plt.imshow(image_segmented_sk)
+    plt.show()'''
+
+    return image_segmented_sk
+
 def postprocess(image):
     # First postprocess technqiue in order to isolate object from the rest: opening
-    predicted_mask = morphology.binary_opening(image)
+    predicted_mask = morphology.binary_closing(image)
     # Second postprocess technqiue in order to fill the holes in the objects: dilation
-    predicted_mask = morphology.binary_dilation(predicted_mask)
+    predicted_mask = morphology.binary_erosion(predicted_mask)
     '''plt.figure()
     plt.subplot(1,2,1), plt.imshow(image)
     plt.subplot(1,2,2), plt.imshow(predicted_mask)
@@ -45,9 +88,10 @@ def skin_lesion_segmentation(img_root):
     # Preprocess the image
     image_gray_preprocessed = preprocess(image_gray)
     # Segmenetation process
-    image_segmented = segment(image_gray_preprocessed)
+    image_segmented = segment_kmeans(image_gray_preprocessed)
     # Postprocessing of the image
     predicted_mask = postprocess(image_segmented)
+    
     return predicted_mask
 
 def thread(img_roots,gt_mask_roots):
