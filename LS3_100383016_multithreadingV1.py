@@ -8,7 +8,7 @@ import multiprocessing
 
 def preprocess(image):
     # First pre-processing technqiue: difference_of_gaussians
-    image_preprocessed = filters.difference_of_gaussians(image, low_sigma = 140)
+    image_preprocessed = filters.gaussian(image, sigma=20)
     # Second pre-processing technqiue: median filter
     image_preprocessed = filters.median(image_preprocessed)
     '''plt.figure()
@@ -27,14 +27,14 @@ def segment(image):
 
 def postprocess(image):
     # First postprocess technqiue in order to isolate object from the rest: opening
-    predicted_mask = morphology.binary_opening(image)
+    #predicted_mask = morphology.binary_opening(image)
     # Second postprocess technqiue in order to fill the holes in the objects: dilation
-    predicted_mask = morphology.binary_dilation(predicted_mask)
+    #predicted_mask = morphology.binary_dilation(predicted_mask)
     '''plt.figure()
     plt.subplot(1,2,1), plt.imshow(image)
     plt.subplot(1,2,2), plt.imshow(predicted_mask)
     plt.show()'''
-    return predicted_mask
+    return image
 
 
 def skin_lesion_segmentation(img_root):
